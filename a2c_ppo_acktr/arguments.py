@@ -66,6 +66,12 @@ def get_args():
         default=0.5,
         help='max norm of gradients (default: 0.5)')
     parser.add_argument(
+        '--record_trajectories',
+        type=int,
+        default=0,
+        help='Save trajectories?')
+    parser.add_argument('--num_episodes', type=int, default=20)
+    parser.add_argument(
         '--seed', type=int, default=1, help='random seed (default: 1)')
     parser.add_argument(
         '--cuda-deterministic',
@@ -92,6 +98,8 @@ def get_args():
         type=int,
         default=32,
         help='number of batches for ppo (default: 32)')
+    parser.add_argument('--use_activation', default=0, type=int,
+            help='Use final activation? (Useful for certain scenarios)')
     parser.add_argument(
         '--clip-param',
         type=float,
@@ -123,11 +131,13 @@ def get_args():
         help='environment to train on (default: PongNoFrameskip-v4)')
     parser.add_argument(
         '--log-dir',
-        default='/tmp/gym/',
+        default='/serverdata/rohit/BCGAIL/logs/',
         help='directory to save agent logs (default: /tmp/gym)')
+    parser.add_argument('--model_name', type=str, required=True)
+    parser.add_argument('--load_model_name', type=str, default=None)
     parser.add_argument(
         '--save-dir',
-        default='./trained_models/',
+        default='/serverdata/rohit/BCGAIL/',
         help='directory to save agent logs (default: ./trained_models/)')
     parser.add_argument(
         '--no-cuda',

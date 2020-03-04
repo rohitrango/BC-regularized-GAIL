@@ -13,7 +13,7 @@ class Flatten(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None):
+    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None, activation=None):
         super(Policy, self).__init__()
         if base_kwargs is None:
             base_kwargs = {}
@@ -32,7 +32,7 @@ class Policy(nn.Module):
             self.dist = Categorical(self.base.output_size, num_outputs)
         elif action_space.__class__.__name__ == "Box":
             num_outputs = action_space.shape[0]
-            self.dist = DiagGaussian(self.base.output_size, num_outputs)
+            self.dist = DiagGaussian(self.base.output_size, num_outputs, activation=activation)
         elif action_space.__class__.__name__ == "MultiBinary":
             num_outputs = action_space.shape[0]
             self.dist = Bernoulli(self.base.output_size, num_outputs)
@@ -167,27 +167,38 @@ class NNBase(nn.Module):
 
 
 class CNNBase(NNBase):
-    def __init__(self, num_inputs, recurrent=False, hidden_size=512):
+    def __init__(self, num_inputs, recurrent=False, hidden_size=512, env=None):
         super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
 
         init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
                                constant_(x, 0), nn.init.calculate_gain('relu'))
 
-        self.main = nn.Sequential(
-            init_(nn.Conv2d(num_inputs, 32, 8, stride=4)), nn.ReLU(),
-            init_(nn.Conv2d(32, 64, 4, stride=2)), nn.ReLU(),
-            init_(nn.Conv2d(64, 32, 3, stride=1)), nn.ReLU(), Flatten(),
-            init_(nn.Linear(32 * 7 * 7, hidden_size)), nn.ReLU())
+        if env != 'CarRacing-v0':
+            self.main = nn.Sequential(
+                init_(nn.Conv2d(num_inputs, 32, 8, stride=4)), nn.ReLU(),
+                init_(nn.Conv2d(32, 64, 4, stride=2)), nn.ReLU(),
+                init_(nn.Conv2d(64, 32, 3, stride=1)), nn.ReLU(), Flatten(),
+                init_(nn.Linear(32 * 7 * 7, hidden_size)), nn.ReLU())
+        else:
+            # For Car Racing
+            print("Using CarRacing base")
+            self.main = nn.Sequential(
+                init_(nn.Conv2d(num_inputs, 32, 4, stride=2)), nn.ReLU(),
+                init_(nn.Conv2d(32, 64, 4, stride=2)), nn.ReLU(),
+                init_(nn.Conv2d(64, 128, 4, stride=2)), nn.ReLU(),
+                init_(nn.Conv2d(128, 256, 4, stride=2)), nn.ReLU(), Flatten(),
+                init_(nn.Linear(256 * 4 * 4, hidden_size)), nn.ReLU(),
+                init_(nn.Linear(hidden_size, hidden_size)), nn.ReLU(),
+            )
 
         init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
                                constant_(x, 0))
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
-
         self.train()
 
     def forward(self, inputs, rnn_hxs, masks):
-        x = self.main(inputs / 255.0)
+        x = self.main(inputs)
 
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)

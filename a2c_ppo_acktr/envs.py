@@ -6,13 +6,15 @@ import torch
 from gym.spaces.box import Box
 
 from baselines import bench
-from baselines.common.atari_wrappers import make_atari, wrap_deepmind
+from baselines.common.atari_wrappers import make_atari, wrap_deepmind, ScaledFloatFrame, WarpFrame
 from baselines.common.vec_env import VecEnvWrapper
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.shmem_vec_env import ShmemVecEnv
 from baselines.common.vec_env.vec_normalize import \
     VecNormalize as VecNormalize_
 
+import gym_minigrid
+from gym_minigrid import wrappers as mgwr
 try:
     import dm_control2gym
 except ImportError:
@@ -47,6 +49,16 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets):
         if str(env.__class__.__name__).find('TimeLimit') >= 0:
             env = TimeLimitMask(env)
 
+        # minigrid
+        keep_classes = ['agent', 'goal', 'wall', 'empty']
+        if 'key' in env_id.lower():
+            keep_classes.extend(['door', 'key'])
+
+        if env_id.startswith('MiniGrid'):
+            env = mgwr.FullyObsWrapper(env)
+            env = mgwr.ImgObsWrapper(env)
+            env = mgwr.FullyObsOneHotWrapper(env, drop_color=1, keep_classes=keep_classes, flatten=False)
+
         if log_dir is not None:
             env = bench.Monitor(
                 env,
@@ -57,14 +69,15 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets):
             if len(env.observation_space.shape) == 3:
                 env = wrap_deepmind(env)
         elif len(env.observation_space.shape) == 3:
-            raise NotImplementedError(
-                "CNN models work only for atari,\n"
-                "please use a custom wrapper for a custom pixel input env.\n"
-                "See wrap_deepmind for an example.")
+            if env_id.startswith('CarRacing'):
+                env = WarpFrame(env, width=96, height=96, grayscale=True)
+                env = ScaledFloatFrame(env)
+            else:
+                raise NotImplementedError
 
         # If the input has shape (W,H,3), wrap for PyTorch convolutions
         obs_shape = env.observation_space.shape
-        if len(obs_shape) == 3 and obs_shape[2] in [1, 3]:
+        if len(obs_shape) == 3:
             env = TransposeImage(env, op=[2, 0, 1])
 
         return env
@@ -79,6 +92,7 @@ def make_vec_envs(env_name,
                   log_dir,
                   device,
                   allow_early_resets,
+                  training=True,
                   num_frame_stack=None):
     envs = [
         make_env(env_name, seed, i, log_dir, allow_early_resets)
@@ -95,8 +109,19 @@ def make_vec_envs(env_name,
             envs = VecNormalize(envs, ret=False)
         else:
             envs = VecNormalize(envs, gamma=gamma)
+        if not training:
+            envs.eval()
+
+    elif env_name.startswith('CarRacing'):
+        # Car Racing, use a normalizer for rewards
+        envs = VecNormalize(envs, ob=False, ret=training, clipob=1e10, cliprew=1.0)
+        if not training:
+            envs.eval()
 
     envs = VecPyTorch(envs, device)
+    # Hack for now
+    is_atari = env_name.startswith('MiniGrid') or env_name.startswith('CarRacing')
+    is_atari = not is_atari
 
     if num_frame_stack is not None:
         envs = VecPyTorchFrameStack(envs, num_frame_stack, device)
