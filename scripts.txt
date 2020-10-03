@@ -6,3 +6,8 @@ python main.py --env-name CarRacing-v0 --algo ppo --use-gae --lr 2.5e-4
 
 CUDA_VISIBLE_DEVICES=6,7 python main.py --env-name CarRacing-v0 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.2 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --log-interval 1 --entropy-coef 0.01 --model_name CarRacingPPOtanh --load_model_name CarRacingPPO --use_activation 1
 python main.py --env-name CarRacing-v0 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.01 --model_name CarRacingPPO --load_model_name CarRacingPPO
+python main.py --env-name CarRacing-v0 --algo ppo --gail --gail-experts-dir /serverdata/rohit/BCGAIL/CarRacingPPO/ --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.01 --model_name CarRacingGAIL --gail-batch-size 32
+
+## GAIL baseline
+python main.py --env-name CarRacing-v0 --algo ppo --gail --gail-experts-dir /serverdata/rohit/BCGAIL/CarRacingPPO/ --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.01 --model_name CarRacingGAIL --gail-batch-size 32
+python main.py --env-name CarRacing-v0 --algo ppo --gail --gail-experts-dir /serverdata/rohit/BCGAIL/CarRacingPPO/ --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.01 --model_name CarRacingBCGAIL0.125 --gail-batch-size 32 --bcgail 1 --gailgamma 0.125 --decay 1 --num-env-steps 1000000 --seed 1

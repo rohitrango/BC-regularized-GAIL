@@ -7,6 +7,7 @@ from collections import deque
 import gym
 import numpy as np
 import torch
+from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -43,7 +44,7 @@ def record_trajectories():
     device = torch.device("cuda:0" if args.cuda else "cpu")
 
     envs = make_vec_envs(args.env_name, args.seed, 1,
-                         args.gamma, log_dir, device, True, training=False, red=True)
+                         args.gamma, log_dir, device, True, training=False)
 
     # Take activation for carracing
     print("Loaded env...")
@@ -61,22 +62,14 @@ def record_trajectories():
     actor_critic.to(device)
 
     # Load from previous model
-    if args.load_model_name and args.model_name != 'random':
+    if args.load_model_name:
         loaddata = torch.load(os.path.join(args.save_dir, args.load_model_name, args.load_model_name + '_{}.pt'.format(args.seed)))
         state = loaddata[0]
         try:
-            #print(envs.venv, loaddata[2])
-            if not args.load_model_name.endswith('BC'):
-                obs_rms, ret_rms = loaddata[1:]
-                envs.venv.ob_rms = obs_rms
-                envs.venv.ret_rms = None
-                #envs.venv.ret_rms = ret_rms
-                print(obs_rms)
-                print("Loaded obs rms")
-            else:
-                envs.venv.ob_rms = None
-                envs.venv.ret_rms = None
-                print("Its BC, no normalization from env")
+            obs_rms, ret_rms = loaddata[1:]
+            # Feed it into the env
+            envs.obs_rms = None
+            envs.ret_rms = None
         except:
             print("Couldnt load obsrms")
             obs_rms = ret_rms = None
@@ -84,10 +77,6 @@ def record_trajectories():
             actor_critic.load_state_dict(state)
         except:
             actor_critic = state
-    elif args.load_model_name and args.model_name == 'random':
-        print("Using random policy...")
-        envs.venv.ret_rms = None
-        envs.venv.ob_rms = None
     else:
         raise NotImplementedError
 
@@ -96,9 +85,6 @@ def record_trajectories():
     rewards = []
     observations = []
     episode_starts = []
-    total_rewards = []
-
-    last_length = 0
 
     for eps in range(args.num_episodes):
         obs = envs.reset()
@@ -120,34 +106,12 @@ def record_trajectories():
             episode_starts.append(False)
             obs = next_state + 0
         print("Total reward: {}".format(reward[0, 0].data.cpu().numpy()))
-        print("Total length: {}".format(len(observations) - last_length))
-        last_length = len(observations)
-        total_rewards.append(reward[0, 0].data.cpu().numpy())
 
     # Save these values
-    '''
-    if len(envs.observation_space.shape) == 3:
-        save_trajectories_images(observations, actions, rewards, episode_starts)
-    else:
-        save_trajectories(observations, actions, rewards, episode_starts)
-    '''
-    pathname = args.load_model_name if args.model_name != 'random' else 'random'
-    prefix = 'length' if args.savelength else ''
-    with open(os.path.join(args.save_dir, args.load_model_name, pathname + '_{}{}.txt'.format(prefix, args.seed)), 'wt') as f:
-        if not args.savelength:
-            for rew in total_rewards:
-                f.write('{}\n'.format(rew))
-        else:
-            avg_length = len(observations) / args.num_episodes
-            f.write("{}\n".format(avg_length))
-
-
-def save_trajectories(obs, acts, rews, eps):
-    raise NotImplementedError
+    save_trajectories_images(observations, actions, rewards, episode_starts)
 
 
 def save_trajectories_images(obs, acts, rews, eps):
-    # Save images only
     args = get_args()
     obs_path = []
     acts = np.array(acts)
@@ -210,7 +174,6 @@ def main():
 
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
                          args.gamma, log_dir, device, False)
-    obs_shape = len(envs.observation_space.shape)
 
     # Take activation for carracing
     print("Loaded env...")
@@ -234,18 +197,6 @@ def main():
         except:
             actor_critic = state
 
-    # If BCGAIL, then decay factor and gamma should be float
-    if args.bcgail:
-        assert type(args.decay) == float
-        assert type(args.gailgamma) == float
-        if args.decay < 0:
-            args.decay = 1
-        elif args.decay > 1:
-            args.decay = 0.5**(1./args.decay)
-
-        print('Gamma: {}, decay: {}'.format(args.gailgamma, args.decay))
-        print('BCGAIL used')
-
     if args.algo == 'a2c':
         agent = algo.A2C_ACKTR(
             actor_critic,
@@ -265,9 +216,6 @@ def main():
             args.entropy_coef,
             lr=args.lr,
             eps=args.eps,
-            gamma=args.gailgamma,
-            decay=args.decay,
-            act_space=envs.action_space,
             max_grad_norm=args.max_grad_norm)
     elif args.algo == 'acktr':
         agent = algo.A2C_ACKTR(
@@ -275,30 +223,29 @@ def main():
 
     if args.gail:
         if len(envs.observation_space.shape) == 1:
-
-            # Load RED here
-            red = None
-            if args.red:
-                red = gail.RED(envs.observation_space.shape[0] + envs.action_space.shape[0],
-                        100, device, args.redsigma, args.rediters)
-
             discr = gail.Discriminator(
                 envs.observation_space.shape[0] + envs.action_space.shape[0], 100,
-                device, red=red, sail=args.sail, learn=args.learn)
+                device)
             file_name = os.path.join(
                 args.gail_experts_dir, "trajs_{}.pt".format(
                     args.env_name.split('-')[0].lower()))
 
             expert_dataset = gail.ExpertDataset(
-                file_name, num_trajectories=args.num_traj, subsample_frequency=1)
-            args.gail_batch_size = min(args.gail_batch_size, len(expert_dataset))
+                file_name, num_trajectories=3, subsample_frequency=1)
+            expert_dataset_test = gail.ExpertDataset(
+                file_name, num_trajectories=1, start=3, subsample_frequency=1)
             drop_last = len(expert_dataset) > args.gail_batch_size
             gail_train_loader = torch.utils.data.DataLoader(
                 dataset=expert_dataset,
                 batch_size=args.gail_batch_size,
                 shuffle=True,
                 drop_last=drop_last)
-            print("Data loader size", len(expert_dataset))
+            gail_test_loader = torch.utils.data.DataLoader(
+                dataset=expert_dataset_test,
+                batch_size=args.gail_batch_size,
+                shuffle=False,
+                drop_last=False)
+            print(len(expert_dataset), len(expert_dataset_test))
         else:
             # env observation shape is 3 => its an image
             assert len(envs.observation_space.shape) == 3
@@ -308,12 +255,19 @@ def main():
             file_name = os.path.join(
                 args.gail_experts_dir, 'expert_data.pkl')
 
-            expert_dataset = gail.ExpertImageDataset(file_name, act=envs.action_space)
+            expert_dataset = gail.ExpertImageDataset(file_name, train=True)
+            test_dataset = gail.ExpertImageDataset(file_name, train=False)
             gail_train_loader = torch.utils.data.DataLoader(
                 dataset=expert_dataset,
                 batch_size=args.gail_batch_size,
                 shuffle=True,
                 drop_last = len(expert_dataset) > args.gail_batch_size,
+            )
+            gail_test_loader = torch.utils.data.DataLoader(
+                dataset=test_dataset,
+                batch_size=args.gail_batch_size,
+                shuffle=False,
+                drop_last = len(test_dataset) > args.gail_batch_size,
             )
             print('Dataloader size', len(gail_train_loader))
 
@@ -327,15 +281,23 @@ def main():
 
     episode_rewards = deque(maxlen=10)
     start = time.time()
-    num_updates = int(
-        args.num_env_steps) // args.num_steps // args.num_processes
+    #num_updates = int(
+        #args.num_env_steps) // args.num_steps // args.num_processes
+    num_updates = args.num_steps
     print(num_updates)
+
+    # count the number of times validation loss increases
+    val_loss_increase = 0
+    prev_val_action = np.inf
+    best_val_loss = np.inf
+
     for j in range(num_updates):
         if args.use_linear_lr_decay:
             # decrease learning rate linearly
             utils.update_linear_schedule(
                 agent.optimizer, j, num_updates,
                 agent.optimizer.lr if args.algo == "acktr" else args.lr)
+
 
         for step in range(args.num_steps):
             # Sample actions
@@ -372,54 +334,77 @@ def main():
                     pass
 
             gail_epoch = args.gail_epoch
-            if j < 10 and obs_shape == 1:
-                gail_epoch = 100  # Warm up
+            #if j < 10:
+                #gail_epoch = 100  # Warm up
             for _ in range(gail_epoch):
-                if obs_shape == 1:
-                    discr.update(gail_train_loader, rollouts,
-                                 utils.get_vec_normalize(envs)._obfilt)
-                else:
-                    discr.update(gail_train_loader, rollouts,
-                                 None)
-            if obs_shape == 3:
-                obfilt = None
-            else:
-                obfilt = utils.get_vec_normalize(envs)._rev_obfilt
+                #discr.update(gail_train_loader, rollouts,
+                             #None)
+                pass
 
             for step in range(args.num_steps):
                 rollouts.rewards[step] = discr.predict_reward(
                     rollouts.obs[step], rollouts.actions[step], args.gamma,
-                    rollouts.masks[step], obfilt) # The reverse function is passed down for RED to receive unnormalized obs which it is trained on
+                    rollouts.masks[step])
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma,
                                  args.gae_lambda, args.use_proper_time_limits)
 
-        if args.bcgail:
-            if obs_shape == 3:
-                obfilt = None
-            else:
-                obfilt = utils.get_vec_normalize(envs)._obfilt
-            value_loss, action_loss, dist_entropy = agent.update(rollouts, gail_train_loader, obfilt)
-        else:
-            value_loss, action_loss, dist_entropy = agent.update(rollouts)
+        #value_loss, action_loss, dist_entropy = agent.update(rollouts)
+        value_loss = 0
+        dist_entropy = 0
+        for data in gail_train_loader:
+            expert_states, expert_actions = data
+            expert_states = Variable(expert_states).to(device)
+            expert_actions = Variable(expert_actions).to(device)
+            loss = agent.update_bc(expert_states, expert_actions)
+            action_loss = loss.data.cpu().numpy()
+        print("Epoch: {}, Loss: {}".format(j, action_loss))
 
-        rollouts.after_update()
+        with torch.no_grad():
+            cnt = 0
+            val_action_loss = 0
+            for data in gail_test_loader:
+                expert_states, expert_actions = data
+                expert_states = Variable(expert_states).to(device)
+                expert_actions = Variable(expert_actions).to(device)
+                loss = agent.get_action_loss(expert_states, expert_actions)
+                val_action_loss += loss.data.cpu().numpy()
+                cnt += 1
+            val_action_loss /= cnt
+            print("Val Loss: {}".format(val_action_loss))
+
+        #rollouts.after_update()
 
         # save for every interval-th episode or for the last epoch
         if (j % args.save_interval == 0
                 or j == num_updates - 1) and args.save_dir != "":
-            save_path = os.path.join(args.save_dir, args.model_name)
-            try:
-                os.makedirs(save_path)
-            except OSError:
-                pass
 
-            torch.save([
-                actor_critic.state_dict(),
-                getattr(utils.get_vec_normalize(envs), 'ob_rms', None),
-                getattr(utils.get_vec_normalize(envs), 'ret_rms', None)
-            ], os.path.join(save_path, args.model_name + "_{}.pt".format(args.seed)))
+            if val_action_loss < best_val_loss:
+                val_loss_increase = 0
+                best_val_loss = val_action_loss
+                save_path = os.path.join(args.save_dir, args.model_name)
+                try:
+                    os.makedirs(save_path)
+                except OSError:
+                    pass
 
+                torch.save([
+                    actor_critic.state_dict(),
+                    getattr(utils.get_vec_normalize(envs), 'ob_rms', None),
+                    getattr(utils.get_vec_normalize(envs), 'ret_rms', None)
+                ], os.path.join(save_path, args.model_name + "_{}.pt".format(args.seed)))
+            elif val_action_loss > prev_val_action:
+                val_loss_increase += 1
+                if val_loss_increase == 10:
+                    print("Val loss increasing too much, breaking here...")
+                    break
+            elif val_action_loss < prev_val_action:
+                val_loss_increase = 0
+
+            # Update prev val action
+            prev_val_action = val_action_loss
+
+        # log interval
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             total_num_steps = (j + 1) * args.num_processes * args.num_steps
             end = time.time()

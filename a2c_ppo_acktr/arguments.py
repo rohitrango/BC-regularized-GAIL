@@ -23,8 +23,13 @@ def get_args():
         help='gail batch size (default: 128)')
     parser.add_argument(
         '--gail-epoch', type=int, default=5, help='gail epochs (default: 5)')
+    parser.add_argument('--redsigma', type=float, default=1.0)
+    parser.add_argument('--rediters', type=int, default=100)
+    parser.add_argument('--red', type=int, default=0)
+    parser.add_argument('--sail', type=int, default=0)
     parser.add_argument(
         '--lr', type=float, default=7e-4, help='learning rate (default: 7e-4)')
+    parser.add_argument('--learn', type=int, default=1)
     parser.add_argument(
         '--eps',
         type=float,
@@ -71,6 +76,7 @@ def get_args():
         default=0,
         help='Save trajectories?')
     parser.add_argument('--num_episodes', type=int, default=20)
+    parser.add_argument('--num-traj', type=int, default=4)
     parser.add_argument(
         '--seed', type=int, default=1, help='random seed (default: 1)')
     parser.add_argument(
@@ -139,6 +145,9 @@ def get_args():
         '--save-dir',
         default='/serverdata/rohit/BCGAIL/',
         help='directory to save agent logs (default: ./trained_models/)')
+    parser.add_argument('--bcgail', type=int, default=0)
+    parser.add_argument('--decay', type=float, default=None)
+    parser.add_argument('--gailgamma', type=float, default=None)
     parser.add_argument(
         '--no-cuda',
         action='store_true',
@@ -154,6 +163,7 @@ def get_args():
         action='store_true',
         default=False,
         help='use a recurrent policy')
+    parser.add_argument('--savelength', type=int, default=0, help='Save average lengths or rewards')
     parser.add_argument(
         '--use-linear-lr-decay',
         action='store_true',

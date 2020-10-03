@@ -93,7 +93,9 @@ def make_vec_envs(env_name,
                   device,
                   allow_early_resets,
                   training=True,
-                  num_frame_stack=None):
+                  num_frame_stack=None,
+                  red=False,
+                  ):
     envs = [
         make_env(env_name, seed, i, log_dir, allow_early_resets)
         for i in range(num_processes)
@@ -104,11 +106,13 @@ def make_vec_envs(env_name,
     else:
         envs = DummyVecEnv(envs)
 
+    # Dont filter if RED
+    obfilt = not red
     if len(envs.observation_space.shape) == 1:
         if gamma is None:
-            envs = VecNormalize(envs, ret=False)
+            envs = VecNormalize(envs, ob=obfilt, ret=False)
         else:
-            envs = VecNormalize(envs, gamma=gamma)
+            envs = VecNormalize(envs, ob=obfilt, gamma=gamma)
         if not training:
             envs.eval()
 
@@ -211,6 +215,13 @@ class VecNormalize(VecNormalize_):
     def __init__(self, *args, **kwargs):
         super(VecNormalize, self).__init__(*args, **kwargs)
         self.training = True
+
+    def _rev_obfilt(self, n_obs, update=False):
+        if self.ob_rms:
+            obs = np.sqrt(self.ob_rms.var + self.epsilon) * n_obs + self.ob_rms.mean
+        else:
+            obs = n_obs
+        return obs
 
     def _obfilt(self, obs, update=True):
         if self.ob_rms:
