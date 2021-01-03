@@ -1,0 +1,11 @@
+python plot_graphs.py --files /serverdata/rohit/BCGAIL/logs/HopperBCGAIL/ /serverdata/rohit/BCGAIL/logs/HopperGAIL/ /serverdata/rohit/BCGAIL/logs/HopperGAILpretrain/ /serverdata/rohit/BCGAIL/logs/HopperRED/ /serverdata/rohit/BCGAIL/logs/HopperSAIL/ --bcpath /serverdata/rohit/BCGAIL/HopperBC --max_steps 1000000 --legend Ours GAIL BC+GAIL RED SAIL
+python plot_graphs.py --files /serverdata/rohit/BCGAIL/logs/AntBCGAIL/ /serverdata/rohit/BCGAIL/logs/AntGAIL/ /serverdata/rohit/BCGAIL/logs/AntGAILpretrain/ /serverdata/rohit/BCGAIL/logs/AntRED/ /serverdata/rohit/BCGAIL/logs/AntSAIL/ --bcpath /serverdata/rohit/BCGAIL/AntBC --max_steps 3000000 --legend Ours GAIL BC+GAIL RED SAIL
+python plot_graphs.py --files /serverdata/rohit/BCGAIL/logs/ReacherBCGAIL/ /serverdata/rohit/BCGAIL/logs/ReacherGAIL/ /serverdata/rohit/BCGAIL/logs/ReacherGAILpretrain/ /serverdata/rohit/BCGAIL/logs/ReacherRED/ /serverdata/rohit/BCGAIL/logs/ReacherSAIL/ --bcpath /serverdata/rohit/BCGAIL/ReacherBC --max_steps 2000000 --legend Ours GAIL BC+GAIL RED SAIL
+python plot_graphs.py --files /serverdata/rohit/BCGAIL/logs/Walker2dBCGAIL/ /serverdata/rohit/BCGAIL/logs/Walker2dGAIL/ /serverdata/rohit/BCGAIL/logs/Walker2dGAILpretrain/ /serverdata/rohit/BCGAIL/logs/Walker2dRED/ /serverdata/rohit/BCGAIL/logs/Walker2dSAIL/ --bcpath /serverdata/rohit/BCGAIL/Walker2dBC --max_steps 3000000 --legend Ours GAIL BC+GAIL RED SAIL
+python plot_graphs.py --files /serverdata/rohit/BCGAIL/logs/HalfCheetahBCGAIL/ /serverdata/rohit/BCGAIL/logs/HalfCheetahGAIL/ /serverdata/rohit/BCGAIL/logs/HalfCheetahGAILpretrain/ /serverdata/rohit/BCGAIL/logs/HalfCheetahRED/ /serverdata/rohit/BCGAIL/logs/HalfCheetahSAIL/ --bcpath /serverdata/rohit/BCGAIL/HalfCheetahBC --max_steps 3000000 --legend Ours GAIL BC+GAIL RED SAIL
+
+
+
+
+# python plot_graphs.py --files /serverdata/rohit/BCGAIL/logs/HalfCheetahBCnoGAIL/ /serverdata/rohit/BCGAIL/logs/HalfCheetahBCGAIL/ /serverdata/rohit/BCGAIL/logs/HalfCheetahGAIL/ --bcpath /serverdata/rohit/BCGAIL/HalfCheetahBC --max_steps 3000000 --legend Ours Ours(no GAIL training) GAIL
+# python plot_graphs.py --files /serverdata/rohit/BCGAIL/logs/AntalphBCGAIL /serverdata/rohit/BCGAIL/logs/AntalphBCGAIL0.25 /serverdata/rohit/BCGAIL/logs/AntalphBCGAIL0.50 /serverdata/rohit/BCGAIL/logs/AntalphBCGAIL0.75 --legend $\alpha=\alpha_0^T$ $\alpha=0.25$ $\alpha=0.50$ $\alpha=0.75$
