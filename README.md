@@ -1,3 +1,53 @@
+# Augmenting GAIL with BC for sample efficient imitation learning
+
+
+Official implemention of the paper [Augmenting GAIL with BC for sample efficient imitation learning](https://arxiv.org/abs/2001.07798) in PyTorch.
+
+It builds upon the PyTorch implementation of popular RL algorithms repository (readme below).
+
+## Installation
+1. Install required packages from `requirements.txt` file.
+2. Install this package with `pip install -e`.
+
+## Reproducing results
+* To reproduce results for GAIL, run the `gail.sh` script. Be sure to change the default log and model paths in `a2c_ppo_acktr/arguments.py` first.
+The general script to run is 
+```
+./<method>.sh <Env> <steps>
+```
+Where keyword `method` corresponds to the following Experiment/Baseline
+|**method**| **Experiment/Baseline** |
+|---|---|
+|gail| GAIL |
+|baselinesbc| BC pretraining + GAIL finetuning |
+|bcgail| Our method |
+|redsail| RED & SAIL |
+|alphamujoco | Ablation on effect of `\alpha` |
+|bcnogail | Ablation on effect of BC + untrained GAIL |
+
+Use the following `steps` for the following mujoco environments:
+|**Environment**| **Steps** |
+|---|---|
+|Ant-v2| 3000000 |
+|HalfCheetah-v2| 3000000 |
+|Hopper-v2| 1000000 |
+|Walker2d-v2| 3000000 |
+|Reacher-v2| 2000000 |
+
+
+If you like this work and want to use it in your research, consider citing our paper (and the repository if you use it - bibtex below):
+```
+@misc{jena2020augmenting,
+      title={Augmenting GAIL with BC for sample efficient imitation learning}, 
+      author={Rohit Jena and Changliu Liu and Katia Sycara},
+      year={2020},
+      eprint={2001.07798},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
+
+
 # pytorch-a2c-ppo-acktr
 
 ## Please use hyper parameters from this readme. With other hyper parameters things might not work (it's RL after all)!
@@ -136,37 +186,3 @@ python enjoy.py --load-dir trained_models/a2c --env-name "PongNoFrameskip-v4"
 ```bash
 python enjoy.py --load-dir trained_models/ppo --env-name "Reacher-v2"
 ```
-
-## Results
-
-### A2C
-
-![BreakoutNoFrameskip-v4](imgs/a2c_breakout.png)
-
-![SeaquestNoFrameskip-v4](imgs/a2c_seaquest.png)
-
-![QbertNoFrameskip-v4](imgs/a2c_qbert.png)
-
-![beamriderNoFrameskip-v4](imgs/a2c_beamrider.png)
-
-### PPO
-
-
-![BreakoutNoFrameskip-v4](imgs/ppo_halfcheetah.png)
-
-![SeaquestNoFrameskip-v4](imgs/ppo_hopper.png)
-
-![QbertNoFrameskip-v4](imgs/ppo_reacher.png)
-
-![beamriderNoFrameskip-v4](imgs/ppo_walker.png)
-
-
-### ACKTR
-
-![BreakoutNoFrameskip-v4](imgs/acktr_breakout.png)
-
-![SeaquestNoFrameskip-v4](imgs/acktr_seaquest.png)
-
-![QbertNoFrameskip-v4](imgs/acktr_qbert.png)
-
-![beamriderNoFrameskip-v4](imgs/acktr_beamrider.png)
